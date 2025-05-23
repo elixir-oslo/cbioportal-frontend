@@ -20,6 +20,7 @@ import { observer } from 'mobx-react';
 import MemoizedHandlerFactory from '../../lib/MemoizedHandlerFactory';
 import URL from 'url';
 import { DefaultTooltip, getBrowserWindow } from 'cbioportal-frontend-commons';
+import { CopyDownloadControls } from '../copyDownloadControls/CopyDownloadControls';
 
 export interface IMSKTabProps {
     inactive?: boolean;
@@ -38,6 +39,7 @@ export interface IMSKTabProps {
     onClickClose?: (tabId: string) => void;
     pending?: boolean;
     linkOverride?: JSX.Element;
+    children?: React.ReactNode; // <-- Add this line
 }
 
 @observer
@@ -280,7 +282,50 @@ export class MSKTabs extends React.Component<IMSKTabsProps> {
                         }
                     >
                         {this.props.contentWindowExtra}
-                        {arr}
+                        {arr.map((tabContent, index) => {
+                            // Type guard: only proceed if tabContent is a ReactElement with props
+                            if (
+                                React.isValidElement(tabContent) &&
+                                typeof tabContent.props === 'object' &&
+                                tabContent.props.linkText === 'CT Scan'
+                            ) {
+                                // Try to extract the url safely
+                                const children: any = tabContent.props.children;
+                                const url =
+                                    children &&
+                                    typeof children === 'object' &&
+                                    children.props &&
+                                    Array.isArray(
+                                        children.props.resourceData
+                                    ) &&
+                                    children.props.resourceData[0] &&
+                                    children.props.resourceData[0].url
+                                        ? children.props.resourceData[0].url
+                                        : '';
+
+                                return (
+                                    <div key={index}>
+                                        {tabContent}
+                                        <CopyDownloadControls
+                                            className="pull-right"
+                                            downloadData={() =>
+                                                Promise.resolve({
+                                                    status: 'complete',
+                                                    text: url,
+                                                })
+                                            }
+                                            downloadFilename={`tab-${index +
+                                                1}-content.tsv`}
+                                            showCopy={false}
+                                            showDownload={false}
+                                            showGalaxy={true}
+                                        />
+                                    </div>
+                                );
+                            }
+                            // Fallback: just render the tabContent
+                            return <div key={index}>{tabContent}</div>;
+                        })}
                     </DeferredRender>
                 </div>
             );
